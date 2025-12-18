@@ -1,79 +1,186 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome Shubham</title>
-
+    <title>Flappy Bird | Welcome Shubham</title>
     <style>
         body {
+            margin: 0;
+            background: #0f172a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
             font-family: Arial, sans-serif;
-            text-align: center;
-            padding-top: 60px;
-            background: #f4f6f8;
-            transition: background 0.5s ease;
-        }
-
-        h1 {
-            animation: fadeIn 1.5s ease-in-out;
-        }
-
-        button {
-            padding: 12px 20px;
-            font-size: 16px;
-            cursor: pointer;
-            border: none;
-            border-radius: 6px;
-            background: #007bff;
             color: white;
-            margin-top: 20px;
         }
 
-        button:hover {
-            background: #0056b3;
+        canvas {
+            background: linear-gradient(#38bdf8, #e0f2fe);
+            border-radius: 10px;
         }
 
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .hint {
+            position: absolute;
+            top: 20px;
+            text-align: center;
+            width: 100%;
+            font-size: 18px;
         }
     </style>
 </head>
-
 <body>
-    <h1 id="greeting"></h1>
-    <p>🚀 Welcome to GitHub, let’s build something awesome!</p>
 
-    <button onclick="changeColor()">Change Mood 🎨</button>
+<div class="hint">Click or Press SPACE to Flap 🐦</div>
+<canvas id="game" width="400" height="600"></canvas>
 
-    <script>
-        const hour = new Date().getHours();
-        let message;
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
-        if (hour < 12) {
-            message = "Good Morning, Shubham ☀️";
-        } else if (hour < 18) {
-            message = "Good Afternoon, Shubham 🌤️";
-        } else {
-            message = "Good Evening, Shubham 🌙";
+let gameStarted = false;
+let gameOver = false;
+let score = 0;
+
+// Bird
+let bird = {
+    x: 80,
+    y: 250,
+    radius: 12,
+    velocity: 0,
+    gravity: 0.5,
+    lift: -8
+};
+
+// Pipes
+let pipes = [];
+const pipeWidth = 50;
+const pipeGap = 150;
+
+// Controls
+document.addEventListener("keydown", e => {
+    if (e.code === "Space") flap();
+});
+canvas.addEventListener("click", flap);
+
+function flap() {
+    if (!gameStarted) gameStarted = true;
+    if (gameOver) resetGame();
+    bird.velocity = bird.lift;
+}
+
+// Create pipe
+function createPipe() {
+    const topHeight = Math.random() * 250 + 50;
+    pipes.push({
+        x: canvas.width,
+        top: topHeight,
+        bottom: canvas.height - topHeight - pipeGap
+    });
+}
+
+// Draw bird
+function drawBird() {
+    ctx.beginPath();
+    ctx.arc(bird.x, bird.y, bird.radius, 0, Math.PI * 2);
+    ctx.fillStyle = "#facc15";
+    ctx.fill();
+    ctx.closePath();
+}
+
+// Draw pipes
+function drawPipes() {
+    ctx.fillStyle = "#16a34a";
+    pipes.forEach(pipe => {
+        ctx.fillRect(pipe.x, 0, pipeWidth, pipe.top);
+        ctx.fillRect(pipe.x, canvas.height - pipe.bottom, pipeWidth, pipe.bottom);
+    });
+}
+
+// Update game
+function update() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Welcome Screen
+    if (!gameStarted) {
+        ctx.fillStyle = "white";
+        ctx.font = "28px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("Welcome Shubham 👋", canvas.width / 2, 260);
+        ctx.font = "16px Arial";
+        ctx.fillText("Click or Press SPACE to Start", canvas.width / 2, 300);
+        drawBird();
+        requestAnimationFrame(update);
+        return;
+    }
+
+    // Bird physics
+    bird.velocity += bird.gravity;
+    bird.y += bird.velocity;
+
+    // Pipes logic
+    if (pipes.length === 0 || pipes[pipes.length - 1].x < 200) {
+        createPipe();
+    }
+
+    pipes.forEach(pipe => {
+        pipe.x -= 2;
+
+        // Collision
+        if (
+            bird.x + bird.radius > pipe.x &&
+            bird.x - bird.radius < pipe.x + pipeWidth &&
+            (bird.y - bird.radius < pipe.top ||
+             bird.y + bird.radius > canvas.height - pipe.bottom)
+        ) {
+            gameOver = true;
         }
 
-        document.getElementById("greeting").innerText = message;
+        if (pipe.x + pipeWidth === bird.x) score++;
+    });
 
-        function changeColor() {
-            const colors = ["#f4f6f8", "#ffeaa7", "#dff9fb", "#fab1a0", "#c7ecee"];
-            document.body.style.background =
-                colors[Math.floor(Math.random() * colors.length)];
-        }
-    </script>
+    pipes = pipes.filter(pipe => pipe.x + pipeWidth > 0);
+
+    // Ground / ceiling collision
+    if (bird.y > canvas.height || bird.y < 0) gameOver = true;
+
+    // Draw everything
+    drawPipes();
+    drawBird();
+
+    // Score
+    ctx.fillStyle = "white";
+    ctx.font = "20px Arial";
+    ctx.fillText("Score: " + score, 20, 30);
+
+    // Game over
+    if (gameOver) {
+        ctx.fillStyle = "rgba(0,0,0,0.6)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "white";
+        ctx.font = "26px Arial";
+        ctx.fillText("Game Over 💀", canvas.width / 2, 260);
+        ctx.font = "16px Arial";
+        ctx.fillText("Click or Press SPACE to Restart", canvas.width / 2, 300);
+        return;
+    }
+
+    requestAnimationFrame(update);
+}
+
+// Reset
+function resetGame() {
+    bird.y = 250;
+    bird.velocity = 0;
+    pipes = [];
+    score = 0;
+    gameOver = false;
+    gameStarted = true;
+}
+
+// Start loop
+update();
+</script>
+
 </body>
-
 </html>
