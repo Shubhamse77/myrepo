@@ -2,108 +2,185 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Mini Game | Click the Target</title>
+    <title>Flappy Bird | Welcome Shubham</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            text-align: center;
+            margin: 0;
             background: #0f172a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
             color: white;
-            overflow: hidden;
         }
 
-        h1 {
-            margin-top: 20px;
+        canvas {
+            background: linear-gradient(#38bdf8, #e0f2fe);
+            border-radius: 10px;
         }
 
-        #score, #timer {
-            font-size: 20px;
-            margin: 10px;
-        }
-
-        #target {
-            width: 60px;
-            height: 60px;
-            background: red;
-            border-radius: 50%;
+        .hint {
             position: absolute;
-            cursor: pointer;
-            display: none;
-        }
-
-        button {
-            padding: 12px 20px;
-            font-size: 16px;
-            cursor: pointer;
-            border: none;
-            border-radius: 6px;
-            background: #22c55e;
-            color: black;
+            top: 20px;
+            text-align: center;
+            width: 100%;
+            font-size: 18px;
         }
     </style>
 </head>
 <body>
 
-    <h1>🎯 Click the Target</h1>
-    <p>Click the red circle as many times as possible in 10 seconds!</p>
+<div class="hint">Click or Press SPACE to Flap 🐦</div>
+<canvas id="game" width="400" height="600"></canvas>
 
-    <div id="score">Score: 0</div>
-    <div id="timer">Time: 10</div>
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
-    <button onclick="startGame()">Start Game</button>
+let gameStarted = false;
+let gameOver = false;
+let score = 0;
 
-    <div id="target"></div>
+// Bird
+let bird = {
+    x: 80,
+    y: 250,
+    radius: 12,
+    velocity: 0,
+    gravity: 0.5,
+    lift: -8
+};
 
-    <script>
-        let score = 0;
-        let timeLeft = 10;
-        let gameInterval, timerInterval;
+// Pipes
+let pipes = [];
+const pipeWidth = 50;
+const pipeGap = 150;
 
-        const target = document.getElementById("target");
-        const scoreEl = document.getElementById("score");
-        const timerEl = document.getElementById("timer");
+// Controls
+document.addEventListener("keydown", e => {
+    if (e.code === "Space") flap();
+});
+canvas.addEventListener("click", flap);
 
-        function randomPosition() {
-            const x = Math.random() * (window.innerWidth - 60);
-            const y = Math.random() * (window.innerHeight - 60);
-            target.style.left = x + "px";
-            target.style.top = y + "px";
+function flap() {
+    if (!gameStarted) gameStarted = true;
+    if (gameOver) resetGame();
+    bird.velocity = bird.lift;
+}
+
+// Create pipe
+function createPipe() {
+    const topHeight = Math.random() * 250 + 50;
+    pipes.push({
+        x: canvas.width,
+        top: topHeight,
+        bottom: canvas.height - topHeight - pipeGap
+    });
+}
+
+// Draw bird
+function drawBird() {
+    ctx.beginPath();
+    ctx.arc(bird.x, bird.y, bird.radius, 0, Math.PI * 2);
+    ctx.fillStyle = "#facc15";
+    ctx.fill();
+    ctx.closePath();
+}
+
+// Draw pipes
+function drawPipes() {
+    ctx.fillStyle = "#16a34a";
+    pipes.forEach(pipe => {
+        ctx.fillRect(pipe.x, 0, pipeWidth, pipe.top);
+        ctx.fillRect(pipe.x, canvas.height - pipe.bottom, pipeWidth, pipe.bottom);
+    });
+}
+
+// Update game
+function update() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Welcome Screen
+    if (!gameStarted) {
+        ctx.fillStyle = "white";
+        ctx.font = "28px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("Welcome Shubham 👋", canvas.width / 2, 260);
+        ctx.font = "16px Arial";
+        ctx.fillText("Click or Press SPACE to Start", canvas.width / 2, 300);
+        drawBird();
+        requestAnimationFrame(update);
+        return;
+    }
+
+    // Bird physics
+    bird.velocity += bird.gravity;
+    bird.y += bird.velocity;
+
+    // Pipes logic
+    if (pipes.length === 0 || pipes[pipes.length - 1].x < 200) {
+        createPipe();
+    }
+
+    pipes.forEach(pipe => {
+        pipe.x -= 2;
+
+        // Collision
+        if (
+            bird.x + bird.radius > pipe.x &&
+            bird.x - bird.radius < pipe.x + pipeWidth &&
+            (bird.y - bird.radius < pipe.top ||
+             bird.y + bird.radius > canvas.height - pipe.bottom)
+        ) {
+            gameOver = true;
         }
 
-        target.onclick = () => {
-            score++;
-            scoreEl.innerText = "Score: " + score;
-            randomPosition();
-        };
+        if (pipe.x + pipeWidth === bird.x) score++;
+    });
 
-        function startGame() {
-            score = 0;
-            timeLeft = 10;
-            scoreEl.innerText = "Score: 0";
-            timerEl.innerText = "Time: 10";
+    pipes = pipes.filter(pipe => pipe.x + pipeWidth > 0);
 
-            target.style.display = "block";
-            randomPosition();
+    // Ground / ceiling collision
+    if (bird.y > canvas.height || bird.y < 0) gameOver = true;
 
-            gameInterval = setInterval(randomPosition, 800);
+    // Draw everything
+    drawPipes();
+    drawBird();
 
-            timerInterval = setInterval(() => {
-                timeLeft--;
-                timerEl.innerText = "Time: " + timeLeft;
+    // Score
+    ctx.fillStyle = "white";
+    ctx.font = "20px Arial";
+    ctx.fillText("Score: " + score, 20, 30);
 
-                if (timeLeft === 0) {
-                    endGame();
-                }
-            }, 1000);
-        }
+    // Game over
+    if (gameOver) {
+        ctx.fillStyle = "rgba(0,0,0,0.6)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "white";
+        ctx.font = "26px Arial";
+        ctx.fillText("Game Over 💀", canvas.width / 2, 260);
+        ctx.font = "16px Arial";
+        ctx.fillText("Click or Press SPACE to Restart", canvas.width / 2, 300);
+        return;
+    }
 
-        function endGame() {
-            clearInterval(gameInterval);
-            clearInterval(timerInterval);
-            target.style.display = "none";
-            alert("Game Over! 🎉 Your Score: " + score);
-        }
-    </script>
+    requestAnimationFrame(update);
+}
+
+// Reset
+function resetGame() {
+    bird.y = 250;
+    bird.velocity = 0;
+    pipes = [];
+    score = 0;
+    gameOver = false;
+    gameStarted = true;
+}
+
+// Start loop
+update();
+</script>
 
 </body>
 </html>
